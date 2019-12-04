@@ -10,7 +10,7 @@
 
 ### Homogeneous models
 
-- [notebook](ensemble.ipynn)
+- [notebook](ensemble.ipynb)
 
 - [annotated script](ensemble.jl)
 
