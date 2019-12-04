@@ -102,8 +102,15 @@ avg = @from_network MyAverageTwo(regressor1=model1,
 # with the base model predictions:
 
 evaluate(linear, (@load_boston)..., measure=rms)
+
+#-
+
 evaluate(knn, (@load_boston)..., measure=rms)
+
+#-
+
 evaluate(avg, (@load_boston)..., measure=rms)
+
 
 
 # ### Step 0: Helper functions:
@@ -312,6 +319,7 @@ scitype(X)
 y1 = log.(y0)
 y = transform(fit!(machine(UnivariateStandardizer(), y1)), y1);
 
+
 # #### Define the stack and compare performance:
 
 avg = MyAverageTwo(regressor1=forest,
@@ -325,7 +333,8 @@ stack = MyTwoModelStack(regressor1=forest,
 function print_performance(model)
     e = evaluate(model, X, y,
                  resampling=CV(rng=1234, nfolds=8),
-                 measure=rms)
+                 measure=rms,
+                 verbosity=0)
     μ = round(e.measurement[1], sigdigits=5)
     ste = round(std(e.per_fold[1])/sqrt(8), digits=5)
     println("\n $model = $μ ± $(2*ste)")
@@ -335,57 +344,42 @@ all_models = [forest, ridge, avg, stack];
 
 for model in all_models
     print_performance(model)
-end
+end;
 
 
 # #### Tuning a stack
 
-# As stacks are rarely implemented as stand-alone model types, it is
-# common practice to optimize component model hyperparameters
-# *separately* and then tune the adjudicating model hyperparameters
-# with the base learners fixed. Although more computationally
-# expensive, better performance might be possible by applying tuning
-# to the stack as a whole, either simultaneously, or in in cheaper
-# sequential steps.
+# A standard abuse of data hygiene is to optimize stack component
+# model hyperparameters *separately* and then tune (using the same
+# resampling of the data) the adjudicating model hyperparameters with
+# the base learners fixed. Although more computationally expensive,
+# better performance might be expected by applying tuning to the stack
+# as a whole, either simultaneously, or in in cheaper sequential
+# steps. Since our stack is a stand-alone model, this is readily
+# implemented.
 
+# As a proof of concept, let's see how to tune one of the base model
+# hyperparameters, based on performance of the stack as a whole:
 
-# r1 = range(stack, :(regressor1.min_samples_split), lower = 2, upper=10)
-# stack.regressor1.max_features = 3 # currently `nothing` which has wrong type
-# r2 = range(stack, :(regressor1.max_features), lower = 3, upper = 5)
-# r3 = range(stack, :(regressor2.lambda), lower = 0.01, upper = 5, scale=:log)
-# tuned_stack = TunedModel(model=stack,
-#                          ranges=[r1, r2, r3],
-#                          tuning=Grid(resolution=5),
-#                          measure=rms,
-#                          resampling=Holdout())
-
-#print_performance(tuned_stack) # 0.32882 ± 0.01153
-
-
-# e = evaluate(tuned_stack, X, y,
-#              resampling=CV(rng=1234, nfolds=8),
-#              measure=rms, verbosity=3)
-# μ = round(e.measurement[1], sigdigits=5)
-# ste = round(std(e.per_fold[1])/sqrt(8), digits=5)
-# println("\n $model = $μ ± $(2*ste)")
-
-# tune (externally) just one parameter of a component model for
-# proof-of-concept:
-
-r3 = range(stack, :(regressor2.lambda), lower = 5, upper = 15, scale=:log)
+r = range(stack, :(regressor2.lambda), lower = 1, upper = 20, scale=:log)
 tuned_stack = TunedModel(model=stack,
-                         ranges=r3,
+                         ranges=r,
                          tuning=Grid(),
                          measure=rms,
                          resampling=Holdout())
 
-mach = machine(stack,  X, y)
-curve = learning_curve!(mach, range=r3,
-                        resampling=Holdout(),
-                        measure=rms, resolution=10, verbosity=2)
+mach = fit!(machine(tuned_stack,  X, y), verbosity=0)
+best_stack = fitted_params(mach).best_model
+best_stack.regressor2.lambda
 
-plot(curve.parameter_values, curve.measurements, xlab=curve.parameter_name)
-savefig("learning_curve.png")
+#-
+
+# Let's evaluate the best stack using the same data resampling used to
+# the evaluate the assorted untuned models (now we are abusing data hygeine!):
+
+print_performance(best_stack)
+
+#-
 
 using Literate #src
 Literate.notebook(@__FILE__, @__DIR__) #src
