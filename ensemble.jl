@@ -48,7 +48,8 @@ mach = machine(atom, X, y)
 curve = learning_curve!(mach,
                         range=r,
                         measure=mav,
-                        resampling=CV(nfolds=9))
+                        resampling=CV(nfolds=9),
+                        verbosity=0)
 
 plot(curve.parameter_values, curve.measurements, xlab=curve.parameter_name)
 
@@ -64,7 +65,8 @@ mach = machine(one_hundred_models, X, y)
 curve = learning_curve!(mach,
                         range=r,
                         measure=mav,
-                        resampling=CV(nfolds=9))
+                        resampling=CV(nfolds=9),
+                        verbosity=0)
 
 plot(curve.parameter_values, curve.measurements, xlab=curve.parameter_name)
 
