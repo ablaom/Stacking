@@ -23,7 +23,7 @@ machines = (machine(atom, Xs, ys) for i in 1:100)
 Statistics.mean(v...) = mean(v)
 Statistics.mean(v::AbstractVector{<:AbstractNode}) = node(mean, v...)
 
-yhat = sum([predict(m, Xs) for  m in machines]);
+yhat = mean([predict(m, Xs) for  m in machines]);
 
 
 # new composite model type and instance:
