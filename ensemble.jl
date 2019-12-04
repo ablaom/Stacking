@@ -6,7 +6,8 @@
 # of features at nodes.
 
 using MLJ
-using Plots; pyplot()
+using Plots; pyplot(size=(200*2, 120*2))
+import Statistics
 
 # learning network (composite model spec):
 
@@ -18,9 +19,9 @@ atom.n_subfeatures = 4 # to ensure diversity among trained atomic models
 
 machines = (machine(atom, Xs, ys) for i in 1:100)
 
-# overload summation for nodes:
-Base.sum(v...) = sum(v)
-Base.sum(v::AbstractVector{<:AbstractNode}) = node(sum, v...)
+# overload `mean` for nodes:
+Statistics.mean(v...) = mean(v)
+Statistics.mean(v::AbstractVector{<:AbstractNode}) = node(mean, v...)
 
 yhat = sum([predict(m, Xs) for  m in machines]);
 
