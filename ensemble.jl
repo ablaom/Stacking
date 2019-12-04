@@ -48,7 +48,6 @@ curve = learning_curve!(mach,
                         resampling=CV(nfolds=9))
 
 plot(curve.parameter_values, curve.measurements, xlab=curve.parameter_name)
-savefig("atom.png")
 
 # tune regularization parameter for all trees in ensemble simultaneously:
 
@@ -65,7 +64,8 @@ curve = learning_curve!(mach,
                         resampling=CV(nfolds=9))
 
 plot(curve.parameter_values, curve.measurements, xlab=curve.parameter_name)
-savefig("ensemble.png")
+
+#-
 
 using Literate #src
 Literate.notebook(@__FILE__, @__DIR__) #src
