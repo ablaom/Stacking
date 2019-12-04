@@ -3,14 +3,14 @@
 
 ### Stacking
 
-- [notebook](two_model_stack.ipyng)
+- [notebook](two_model_stack.ipynb)
 
 - [annotated script](two_model_stack.jl)
 
 
 ### Homogeneous models
 
-- [notebook](ensemble.ipyng)
+- [notebook](ensemble.ipynn)
 
 - [annotated script](ensemble.jl)
 
