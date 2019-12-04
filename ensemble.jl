@@ -5,6 +5,8 @@
 # algorithm has randomness, eg, DecisionTree with random subsampling
 # of features at nodes.
 
+# ## Definition of composite model type
+
 using MLJ
 using Plots; pyplot(size=(200*2, 120*2))
 import Statistics
@@ -30,7 +32,7 @@ yhat = mean([predict(m, Xs) for  m in machines]);
 
 one_hundred_models = @from_network OneHundredModels(atom=atom) <= yhat
 
-# application to data
+# ## Application to data
 
 X, y = @load_boston;
 
