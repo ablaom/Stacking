@@ -8,13 +8,13 @@
 # network, which we export as a new stand-alone composite model
 # type `MyTwoStack`. This will make the stack that we build completely
 # re-usable (new data, new models) and means we can apply
-# meta-algorithms, such as performance evaluation and tuning to the
+# meta-algorithms, such as performance evaluation and tuning, to the
 # stack, exaclty as we would for any other model.
 
-# Our main purpose is to demonstrate the flexibility of MLJ's
+# Our main purpose here is to demonstrate the flexibility of MLJ's
 # composite model interface. Eventually, MLJ will provide built-in
-# composite types or macros to achieve the same results in a few lines,
-# which will suffice for routine stacking tasks.
+# composite types or macros to achieve the same results in a few
+# lines, which will suffice for routine stacking tasks.
 
 # After defining the `MyTwoStack` model type, we instantiate it for an
 # application to the Ames House Price data set.
@@ -117,10 +117,12 @@ print_performance(linear, X, y)
 print_performance(knn, X, y)
 print_performance(avg, X, y)
 
+# Returning to stacking:
+
 
 # ### Step 0: Helper functions:
 
-# To generate folds:
+# To generate folds for generating out-of-sample predictions, we define
 
 folds(data, nfolds) =
     partition(1:nrows(data), (1/nfolds for i in 1:(nfolds-1))...);
@@ -275,7 +277,6 @@ estack = rms(yhat(), y())
 # amounts to a specification of a new composite model type for
 # two-model stacks, trained with three-fold resampling of base model
 # predictions. Let's create the new type `MyTwoModelStack`:
-# instance):
 
 @from_network MyTwoModelStack(regressor1=model1,
                               regressor2=model2,
@@ -288,14 +289,15 @@ estack = rms(yhat(), y())
 
 # Without undertaking any hyperparameter optimization, we evaluate the
 # performance of a random forest and ridge regressor on the well-known
-# Ames House Prices data, and compare the performance of a stack using
-# the random forest and ridge regressors as base learners. We then
-# indicate some options for tuning the stack.
+# Ames House Prices data, and compare the performance with a stack
+# (and simple averaging) using the random forest and ridge regressors
+# as base learners. We then indicate some options for tuning the
+# stack.
 
 # #### Data pre-processing
 
-# Here we use a reduced subset of the Ames House Price data set with
-# 12 features:
+# Here we use a 12-feature reduced subset of the Ames House Price data
+# set:
 
 X0, y0 = @load_reduced_ames;
 
