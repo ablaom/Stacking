@@ -16,9 +16,8 @@
 # composite types or macros to achieve the same results in a few lines,
 # which will suffice for routine stacking tasks.
 
-# After exporting our learning network as a composite model, we
-# instantiate the model for an application to the Ames House Price data
-# set.
+# After defining the `MyTwoStack` model type, we instantiate it for an
+# application to the Ames House Price data set.
 
 
 # ### Basic stacking using out-of-sample base learner predictions
@@ -31,7 +30,7 @@
 # of Burak Himmetoglu.
 
 # A basic stack consists of a number of base learners (two, in this
-# illustration) and single adjudicating model. 
+# illustration) and a single adjudicating model. 
 
 # When a stacked model is called to make a prediction, the individual
 # predictions of the base learners are made the columns of an *input*
@@ -46,18 +45,19 @@
 # data is first split into a number of folds (as in cross-validation),
 # a base learner is trained on each fold complement individually, and
 # corresponding predictions on the folds are spliced together to form
-# a full-length out-of-sample prediction. For illustrative purposes we
-# use just three folds. Each base learner will get three separate
-# machines, for training on each fold complement, and a fourth
-# machine, trained on all the supplied data, for use in the prediction
-# flow.
+# a full-length prediction called the *out-of-sample.prediction*.
+
+# For illustrative purposes we use just three folds. Each base learner
+# will get three separate machines, for training on each fold
+# complement, and a fourth machine, trained on all the supplied data,
+# for use in the prediction flow.
 
 # We build the learning network with dummy data at the source nodes,
-# so the reader can experiment with the network as it is built (by
-# calling `fit!` on nodes, and by calling the nodes themselves, as
-# they are defined). As usual, this data is not seen by the exported
-# composite model type, and the component models we choose are just
-# default values for the hyperparameters of the composition model.
+# so the reader inspect the workings of the network as it is built (by
+# calling `fit!` on nodes, and by calling the nodes themselves). As
+# usual, this data is not seen by the exported composite model type,
+# and the component models we choose are just default values for the
+# hyperparameters of the composite model.
 
 using MLJ
 using Plots
@@ -65,14 +65,14 @@ pyplot(size=(200*1.5, 120*1.5))
 import Random.seed!
 seed!(1234)
 
-# Some models we will need:
+# Some models we will use:
 
 linear = @load LinearRegressor pkg=MLJLinearModels
 ridge = @load RidgeRegressor pkg=MultivariateStats; ridge.lambda = 0.01
 knn = @load KNNRegressor; knn.K = 4
 tree = @load DecisionTreeRegressor; min_samples_leaf=1
 forest = @load RandomForestRegressor; forest.n_estimators=500
-svm = @load SVMRegressor
+svm = @load SVMRegressor;
 
 # ### Warm-up exercise: Define a model type to average predictions
 
@@ -96,21 +96,26 @@ yhat = 0.5*y1 + 0.5*y2
 # And the macro call to define `MyAverageTwo` and an instance `average_two`:
 
 avg = @from_network MyAverageTwo(regressor1=model1,
-                                       regressor2=model2) <= yhat
+                                 regressor2=model2) <= yhat
 
 # Evaluating this average model on the Boston data set, and comparing
 # with the base model predictions:
 
-evaluate(linear, (@load_boston)..., measure=rms)
+function print_performance(model, data...)
+    e = evaluate(model, data...;
+                 resampling=CV(rng=1234, nfolds=8),
+                 measure=rms,
+                 verbosity=0)
+    μ = round(e.measurement[1], sigdigits=5)
+    ste = round(std(e.per_fold[1])/sqrt(8), digits=5)
+    println("\n $model = $μ ± $(2*ste)")
+end;
 
-#-
+X, y = @load_boston
 
-evaluate(knn, (@load_boston)..., measure=rms)
-
-#-
-
-evaluate(avg, (@load_boston)..., measure=rms)
-
+print_performance(linear, X, y)
+print_performance(knn, X, y)
+print_performance(avg, X, y)
 
 
 # ### Step 0: Helper functions:
@@ -269,12 +274,12 @@ estack = rms(yhat(), y())
 # The learning network (less the data wrapped in the source nodes)
 # amounts to a specification of a new composite model type for
 # two-model stacks, trained with three-fold resampling of base model
-# predictions. Let's create the new type `MyTwoModelStack` (and an
+# predictions. Let's create the new type `MyTwoModelStack`:
 # instance):
 
-instance = @from_network MyTwoModelStack(regressor1=model1,
-                                         regressor2=model2,
-                                         judge=judge) <= yhat
+@from_network MyTwoModelStack(regressor1=model1,
+                              regressor2=model2,
+                              judge=judge) <= yhat
 
 # And this completes the definition of our re-usable stacking model type.
 
@@ -283,8 +288,9 @@ instance = @from_network MyTwoModelStack(regressor1=model1,
 
 # Without undertaking any hyperparameter optimization, we evaluate the
 # performance of a random forest and ridge regressor on the well-known
-# Ames House Prices data, and compare the performance of a stack
-# using the random forest and ridge regressors as base learners.
+# Ames House Prices data, and compare the performance of a stack using
+# the random forest and ridge regressors as base learners. We then
+# indicate some options for tuning the stack.
 
 # #### Data pre-processing
 
@@ -307,7 +313,7 @@ X1 = coerce(X0, :OverallQual => Continuous,
 
 # One-hot encode the multiclass:
 
-hot_mach = fit!(machine(OneHotEncoder(), X1))
+hot_mach = fit!(machine(OneHotEncoder(), X1), verbosity=0)
 X = transform(hot_mach, X1);
 
 # Check the final scitype:
@@ -317,7 +323,8 @@ scitype(X)
 # transform the target:
 
 y1 = log.(y0)
-y = transform(fit!(machine(UnivariateStandardizer(), y1)), y1);
+y = transform(fit!(machine(UnivariateStandardizer(), y1),
+                   verbosity=0), y1);
 
 
 # #### Define the stack and compare performance:
@@ -330,31 +337,21 @@ stack = MyTwoModelStack(regressor1=forest,
                         regressor2=ridge,
                         judge=linear)
 
-function print_performance(model)
-    e = evaluate(model, X, y,
-                 resampling=CV(rng=1234, nfolds=8),
-                 measure=rms,
-                 verbosity=0)
-    μ = round(e.measurement[1], sigdigits=5)
-    ste = round(std(e.per_fold[1])/sqrt(8), digits=5)
-    println("\n $model = $μ ± $(2*ste)")
-end
-
 all_models = [forest, ridge, avg, stack];
 
 for model in all_models
-    print_performance(model)
+    print_performance(model, X, y)
 end;
 
 
 # #### Tuning a stack
 
-# A standard abuse of data hygiene is to optimize stack component
-# model hyperparameters *separately* and then tune (using the same
-# resampling of the data) the adjudicating model hyperparameters with
-# the base learners fixed. Although more computationally expensive,
-# better performance might be expected by applying tuning to the stack
-# as a whole, either simultaneously, or in in cheaper sequential
+# A standard abuse of good data hygiene practice is to optimize stack
+# component models *separately* and then tune the adjudicating model
+# hyperparameters (using the same resampling of the data) with the
+# base learners fixed. Although more computationally expensive, better
+# generalization might be expected by applying tuning to the stack as
+# a whole, either simultaneously, or in in cheaper sequential
 # steps. Since our stack is a stand-alone model, this is readily
 # implemented.
 
@@ -375,9 +372,10 @@ best_stack.regressor2.lambda
 #-
 
 # Let's evaluate the best stack using the same data resampling used to
-# the evaluate the assorted untuned models (now we are abusing data hygeine!):
+# the evaluate the assorted untuned models earlier (now we are neglecting
+# data hygeine!):
 
-print_performance(best_stack)
+print_performance(best_stack, X, y)
 
 #-
 
